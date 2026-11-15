@@ -248,8 +248,30 @@ function extraBlock(L) {
       <span>${esc(u.title)}${rec ? `<br><small class="rec">⭐ recomendado</small>` : ""}</span></button>`;
   });
   h += `</div>`;
-  if (!pending.length) h += `<p class="muted" style="text-align:center">Fizeste toda a prática extra deste nível. O bot vai criar mais.</p>`;
+  if (!pending.length) h += `<p class="muted" style="text-align:center">Fizeste toda a prática extra deste nível.</p>`;
+  if (pending.length <= 2) h += requestButton(L, weakTopics);
   return h;
+}
+
+// Pedido de mais exercícios: abre um "issue" já preenchido no GitHub; o bot diário responde a ele.
+const REPO_URL = "https://github.com/helderveloso1989/deutsch-app";
+function requestButton(L, weakTopics) {
+  const req = (S.requests || {})[L];
+  if (req && (EXTRA.filter((u) => u.level === L).length > req.count)) delete S.requests[L]; // já chegaram
+  if (S.requests && S.requests[L]) {
+    return `<p class="muted" style="text-align:center">📩 Pedido enviado em ${esc(S.requests[L].date)}. O bot cria os exercícios na próxima execução (1×/dia).
+      <button class="linkbtn" onclick="delete S.requests['${L}'];save();render()">Pedir de novo</button></p>`;
+  }
+  const topics = (weakTopics.length ? weakTopics : unitsOf(L)).map((u) => u.id);
+  const body = `nivel: ${L}\ntemas: ${topics.join(", ")}\n\n(Pedido criado pela app Deutsch Lernen. Carrega em "Submit new issue".)`;
+  const url = `${REPO_URL}/issues/new?title=${encodeURIComponent("Mais exercícios " + L)}&body=${encodeURIComponent(body)}`;
+  return `<a class="btn ghost" style="margin:8px 0;text-align:center;text-decoration:none" href="${url}" target="_blank" rel="noopener"
+    onclick="markRequest('${L}')">📩 Pedir mais exercícios ${L}</a>`;
+}
+function markRequest(L) {
+  S.requests = S.requests || {};
+  S.requests[L] = { date: today(), count: extraOf(L).length };
+  save(); setTimeout(render, 300);
 }
 
 // Treino misto com exercícios dos temas fracos (unidades base + extra)
