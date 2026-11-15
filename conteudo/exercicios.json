@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "updated": "2026-11-15",
+  "units": [
+    {
+      "id": "x-b1-1-001",
+      "level": "B1",
+      "topic": "b1-1",
+      "skill": "write",
+      "icon": "🎨",
+      "title": "Adjetivos: mais prática 1",
+      "items": [
+        { "t": "type", "s": "Wir haben ein ___ Wochenende verbracht.", "h": "schön", "a": ["schönes"], "ex": "Acusativo neutro com ein → -es." },
+        { "t": "type", "s": "Er wohnt in einem ___ Dorf.", "h": "klein", "a": ["kleinen"], "ex": "Dativo com artigo indefinido → -en." },
+        { "t": "type", "s": "Die ___ Wohnung ist sehr hell.", "h": "neu", "a": ["neue"], "ex": "Nominativo com artigo definido → -e." },
+        { "t": "type", "s": "Ich brauche einen ___ Mantel.", "h": "warm", "a": ["warmen"], "ex": "Acusativo masculino → -en." },
+        { "t": "type", "s": "Das ist eine ___ Frage.", "h": "gut", "a": ["gute"], "ex": "Nominativo feminino com eine → -e." },
+        { "t": "type", "s": "Sie trinkt gern ___ Tee.", "h": "grün · sem artigo", "a": ["grünen"], "ex": "Sem artigo, acusativo masculino → -en." },
+        { "t": "type", "s": "Mit ___ Augen sah er die Stadt.", "h": "müde · plural", "a": ["müden"], "ex": "Dativo plural → -en." },
+        { "t": "mc", "q": "Wir wohnen in einem ___ Haus.", "o": ["alten", "altes", "alte"], "a": 0, "ex": "Dativo neutro com einem → -en." },
+        { "t": "fix", "s": "Ich habe einen schönen Abend mit meine alten Freunden verbracht.", "a": ["Ich habe einen schönen Abend mit meinen alten Freunden verbracht."], "ex": "mit + dativo plural: meinen alten Freunden." },
+        { "t": "tr", "s": "Ela comprou um carro vermelho.", "a": ["Sie hat ein rotes Auto gekauft.", "Sie kaufte ein rotes Auto."] }
+      ]
+    },
+    {
+      "id": "x-a2-1-001",
+      "level": "A2",
+      "topic": "a2-1",
+      "skill": "write",
+      "icon": "🧩",
+      "title": "Casos: mais prática 1",
+      "items": [
+        { "t": "type", "s": "Ich kaufe ___ Brot.", "h": "das Brot · acusativo", "a": ["das"] },
+        { "t": "type", "s": "Er schenkt ___ Mutter Blumen.", "h": "die Mutter · dativo", "a": ["der"] },
+        { "t": "type", "s": "Wir fahren mit ___ Zug.", "h": "der Zug", "a": ["dem"], "ex": "mit + dativo." },
+        { "t": "type", "s": "Kannst du ___ das Salz geben?", "h": "eu · dativo", "a": ["mir"] },
+        { "t": "type", "s": "Ich besuche ___ morgen.", "h": "ele · acusativo", "a": ["ihn"] },
+        { "t": "type", "s": "Das Bild hängt an ___ Wand.", "h": "die Wand · onde?", "a": ["der"], "ex": "Wo? → dativo." },
+        { "t": "type", "s": "Ich hänge das Bild an ___ Wand.", "h": "die Wand · para onde?", "a": ["die"], "ex": "Wohin? → acusativo." },
+        { "t": "mc", "q": "Sie geht ohne ___ Mann ins Kino.", "o": ["ihren", "ihrem", "ihr"], "a": 0, "ex": "ohne + acusativo." },
+        { "t": "fix", "s": "Ich helfe meinen Bruder.", "a": ["Ich helfe meinem Bruder."], "ex": "helfen + dativo." },
+        { "t": "type", "s": "Das Geschenk ist für ___ Vater.", "h": "mein · der Vater", "a": ["meinen"], "ex": "für + acusativo." }
+      ]
+    }
+  ]
+}

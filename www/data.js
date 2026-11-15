@@ -1,0 +1,301 @@
+// Conteúdo da app. Tipos de exercício:
+//  mc    – escolha múltipla: q, o[] (opções), a (índice da certa), text (texto de leitura, opcional)
+//  type  – completar: q, s (frase com ___), h (pista), a[] (respostas aceites)
+//  tr    – traduzir PT→DE: s (frase em PT), a[]
+//  fix   – corrigir a frase: s (frase com erro), a[]
+//  order – ordenar palavras: a (frase certa), alt[] (outras ordens aceites), d[] (palavras a mais)
+//  ex    – explicação mostrada depois de responder
+
+const LEVELS = ["A2", "B1", "B2", "C1"];
+
+// Endereço do ficheiro de exercícios extra criado pelo bot (GitHub). Vazio = desligado.
+const EXTRA_URL = "https://raw.githubusercontent.com/helderveloso1989/deutsch-app/main/conteudo/exercicios.json";
+
+const LEVEL_INFO = {
+  A2: "Elementar – frases simples do dia a dia",
+  B1: "Intermédio – textos claros sobre temas conhecidos",
+  B2: "Intermédio superior – textos complexos e argumentação",
+  C1: "Avançado – textos exigentes, estilo formal e nuances",
+};
+
+// ---------- ESCRITA LIVRE (corrigida com IA) ----------
+const WRITING_TASKS = {
+  A2: [
+    "Escreve uma mensagem a um amigo a contar o que fizeste no fim de semana (40–60 palavras).",
+    "Descreve a tua casa ou o teu apartamento (40–60 palavras).",
+    "Escreve um e-mail curto ao teu chefe: estás doente e não podes ir trabalhar hoje.",
+    "Descreve a tua rotina num dia normal de trabalho.",
+  ],
+  B1: [
+    "Escreve um e-mail a um hotel para fazer uma reserva e pedir informações sobre o pequeno-almoço e o estacionamento.",
+    "Conta uma viagem que fizeste: onde foste, o que viste e o que correu mal (80–120 palavras).",
+    "Escreve uma reclamação a uma loja online: a encomenda chegou com atraso e incompleta.",
+    "Dá a tua opinião: é melhor viver na cidade ou no campo? Justifica.",
+  ],
+  B2: [
+    "Escreve uma carta de candidatura (Bewerbung) para um emprego na tua área (150 palavras).",
+    "Teletrabalho: vantagens e desvantagens. Escreve um texto argumentativo (150 palavras).",
+    "Escreve um comentário a um artigo sobre redes sociais e jovens.",
+    "Escreve um e-mail formal ao senhorio sobre um problema de aquecimento que não foi resolvido.",
+  ],
+  C1: [
+    "Escreve um texto de opinião sobre a semana de 4 dias de trabalho, com argumentos e contra-argumentos (200 palavras).",
+    "Resume e comenta um problema atual da tua cidade num registo formal.",
+    "Escreve uma proposta formal à tua empresa para melhorar um processo interno.",
+    "Inteligência artificial na educação: oportunidade ou risco? Texto argumentativo (200 palavras).",
+  ],
+};
+
+// ---------- TESTE DE NÍVEL ----------
+// 4 blocos (A2 → C1). Passa o bloco com 4/5 certas para subir ao seguinte.
+const PLACEMENT = {
+  A2: [
+    { t: "mc", text: "Hallo Anna, ich kann am Samstag leider nicht zu deiner Party kommen. Meine Mutter hat Geburtstag und wir fahren nach Hamburg. Viele Grüße, Jonas",
+      q: "Warum kommt Jonas nicht?", o: ["Er besucht seine Familie in Hamburg.", "Er ist krank.", "Er muss arbeiten."], a: 0 },
+    { t: "mc", text: "Apotheke – Notdienst: Heute geöffnet bis 22 Uhr.",
+      q: "Was bedeutet das?", o: ["Die Apotheke ist heute bis 22 Uhr offen.", "Die Apotheke ist heute geschlossen.", "Die Apotheke öffnet um 22 Uhr."], a: 0 },
+    { t: "type", s: "Ich habe ___ Bruder und zwei Schwestern.", h: "um (acusativo)", a: ["einen"] },
+    { t: "type", s: "Gestern ___ ich mit dem Bus zur Arbeit gefahren.", h: "sein", a: ["bin"] },
+    { t: "fix", s: "ich wohne seit drei jahren in berlin.", a: ["Ich wohne seit drei Jahren in Berlin."] },
+  ],
+  B1: [
+    { t: "mc", text: "Wir suchen ab sofort eine freundliche Aushilfe (m/w/d) für unser Café am Wochenende. Erfahrung ist nicht notwendig, aber Sie sollten gut Deutsch sprechen. Bewerbungen bitte per E-Mail.",
+      q: "Was ist für die Stelle wichtig?", o: ["Gute Deutschkenntnisse", "Erfahrung im Café", "Ein eigenes Auto"], a: 0 },
+    { t: "mc", text: "Wir suchen ab sofort eine freundliche Aushilfe (m/w/d) für unser Café am Wochenende. Erfahrung ist nicht notwendig, aber Sie sollten gut Deutsch sprechen. Bewerbungen bitte per E-Mail.",
+      q: "Wann arbeitet man?", o: ["Am Wochenende", "Jeden Morgen", "Nur abends"], a: 0 },
+    { t: "type", s: "Ich trinke gern einen ___ Kaffee.", h: "heiß", a: ["heißen"] },
+    { t: "order", a: "Ich lerne Deutsch, weil ich in Wien arbeiten möchte." },
+    { t: "type", s: "Ich freue mich ___ die Ferien im Sommer.", h: "preposição", a: ["auf"] },
+  ],
+  B2: [
+    { t: "mc", text: "Seit der Pandemie arbeiten deutlich mehr Menschen von zu Hause aus. Viele Beschäftigte schätzen die gewonnene Flexibilität, doch Arbeitspsychologen warnen davor, dass die Grenzen zwischen Beruf und Privatleben zunehmend verschwimmen. Wer keine festen Arbeitszeiten einhält, riskiert langfristig Erschöpfung.",
+      q: "Wovor warnen die Arbeitspsychologen?", o: ["Dass Arbeit und Privatleben sich vermischen.", "Vor zu wenig Flexibilität.", "Vor zu langen Arbeitswegen."], a: 0 },
+    { t: "mc", text: "Seit der Pandemie arbeiten deutlich mehr Menschen von zu Hause aus. Viele Beschäftigte schätzen die gewonnene Flexibilität, doch Arbeitspsychologen warnen davor, dass die Grenzen zwischen Beruf und Privatleben zunehmend verschwimmen. Wer keine festen Arbeitszeiten einhält, riskiert langfristig Erschöpfung.",
+      q: "Was bedeutet „verschwimmen“ hier?", o: ["unklar werden", "schwimmen gehen", "größer werden"], a: 0 },
+    { t: "type", s: "Die Brücke ___ im Jahr 1890 gebaut.", h: "passiva, Präteritum", a: ["wurde"] },
+    { t: "type", s: "Wenn ich mehr Zeit ___, würde ich öfter lesen.", h: "haben", a: ["hätte"] },
+    { t: "type", s: "Das ist die Kollegin, ___ ich gestern geholfen habe.", h: "pronome relativo", a: ["der"] },
+  ],
+  C1: [
+    { t: "mc", text: "Die Debatte um ein bedingungsloses Grundeinkommen wird häufig verkürzt geführt. Befürworter verweisen auf die Entlastung der Sozialverwaltung, Kritiker hingegen befürchten, dass der Anreiz zur Erwerbsarbeit sinke. Dabei bleibt meist unberücksichtigt, dass empirische Befunde aus Pilotprojekten bislang kaum verallgemeinerbar sind.",
+      q: "Welche Aussage entspricht dem Text?", o: ["Die Ergebnisse der Pilotprojekte lassen sich nur schwer übertragen.", "Pilotprojekte haben eindeutig bewiesen, dass das Grundeinkommen funktioniert.", "Kritiker sehen vor allem Vorteile für die Verwaltung."], a: 0 },
+    { t: "mc", q: "Welcher Konnektor passt? „___ der hohen Kosten wurde das Projekt fortgesetzt.“", o: ["Trotz", "Wegen", "Infolge"], a: 0 },
+    { t: "type", s: "Nach ___ des Vertrags begann die Arbeit.", h: "unterzeichnen → nome", a: ["der Unterzeichnung"] },
+    { t: "type", s: "Der Minister sagte, er ___ von nichts gewusst.", h: "haben, Konjunktiv I", a: ["habe"] },
+    { t: "fix", s: "Obwohl er hatte keine Zeit, half er mir.", a: ["Obwohl er keine Zeit hatte, half er mir."] },
+  ],
+};
+
+// ---------- UNIDADES ----------
+const UNITS = [
+  // ======================= A2 =======================
+  { id: "a2-1", level: "A2", skill: "write", icon: "🧩", title: "Artigos e casos", items: [
+    { t: "type", s: "Ich sehe ___ Hund im Park.", h: "der Hund · acusativo", a: ["den"], ex: "Acusativo masculino: der → den." },
+    { t: "type", s: "Wir helfen ___ Kindern bei den Hausaufgaben.", h: "die Kinder · helfen + dativo", a: ["den"], ex: "helfen pede dativo. Dativo plural: den + -n no nome." },
+    { t: "type", s: "Sie gibt ___ Freundin ein Geschenk.", h: "die Freundin · dativo", a: ["der"], ex: "Dativo feminino: die → der." },
+    { t: "type", s: "Das Buch liegt auf ___ Tisch.", h: "der Tisch · onde? (Wo?)", a: ["dem"], ex: "Wo? → dativo (dem). Wohin? → acusativo (den)." },
+    { t: "type", s: "Ich lege das Buch auf ___ Tisch.", h: "der Tisch · para onde? (Wohin?)", a: ["den"], ex: "Wohin? → acusativo." },
+    { t: "mc", q: "Ich fahre mit ___ Fahrrad zur Arbeit.", o: ["dem", "das", "den"], a: 0, ex: "mit pede sempre dativo: das Fahrrad → dem Fahrrad." },
+    { t: "type", s: "Kannst du ___ helfen?", h: "eu · dativo", a: ["mir"], ex: "helfen + dativo: mir." },
+    { t: "type", s: "Ich rufe ___ morgen an.", h: "tu · acusativo", a: ["dich"], ex: "anrufen + acusativo: dich." },
+    { t: "fix", s: "Ich habe ein neuen Computer gekauft.", a: ["Ich habe einen neuen Computer gekauft."], ex: "der Computer → acusativo: einen neuen Computer." },
+    { t: "type", s: "Er wohnt noch bei ___ Eltern.", h: "sein · plural", a: ["seinen"], ex: "bei + dativo plural: seinen Eltern." },
+  ]},
+  { id: "a2-2", level: "A2", skill: "read", icon: "📖", title: "Leitura: dia a dia", keepOrder: true, items: [
+    { t: "mc", text: "Liebe Frau Weber,\nleider muss ich meinen Termin am Dienstag absagen, weil mein Sohn krank ist. Hätten Sie vielleicht am Donnerstagnachmittag Zeit? Ich kann ab 14 Uhr.\nMit freundlichen Grüßen\nPaulo Silva",
+      q: "Warum sagt Paulo den Termin ab?", o: ["Sein Sohn ist krank.", "Er ist selbst krank.", "Er muss am Dienstag arbeiten."], a: 0 },
+    { t: "mc", text: "Liebe Frau Weber,\nleider muss ich meinen Termin am Dienstag absagen, weil mein Sohn krank ist. Hätten Sie vielleicht am Donnerstagnachmittag Zeit? Ich kann ab 14 Uhr.\nMit freundlichen Grüßen\nPaulo Silva",
+      q: "Wann möchte Paulo kommen?", o: ["Am Donnerstag ab 14 Uhr", "Am Dienstagvormittag", "Am Donnerstag um 12 Uhr"], a: 0 },
+    { t: "mc", text: "Wohnung zu vermieten: 2 Zimmer, Küche, Bad, Balkon. 55 m², 3. Stock ohne Aufzug. Miete: 680 € warm. Haustiere nicht erlaubt. Ab 1. März frei.",
+      q: "Für wen ist die Wohnung nicht geeignet?", o: ["Für Menschen mit Hund", "Für Studenten", "Für Paare"], a: 0, ex: "Haustiere nicht erlaubt = animais não permitidos." },
+    { t: "mc", text: "Wohnung zu vermieten: 2 Zimmer, Küche, Bad, Balkon. 55 m², 3. Stock ohne Aufzug. Miete: 680 € warm. Haustiere nicht erlaubt. Ab 1. März frei.",
+      q: "Was bedeutet „680 € warm“?", o: ["Die Heizkosten sind inklusive.", "Strom und Internet sind inklusive.", "Die Wohnung ist im Sommer warm."], a: 0, ex: "Warmmiete = renda com aquecimento incluído; Kaltmiete = sem." },
+    { t: "mc", text: "Wohnung zu vermieten: 2 Zimmer, Küche, Bad, Balkon. 55 m², 3. Stock ohne Aufzug. Miete: 680 € warm. Haustiere nicht erlaubt. Ab 1. März frei.",
+      q: "Gibt es einen Aufzug?", o: ["Nein", "Ja", "Nur bis zum 2. Stock"], a: 0 },
+    { t: "mc", text: "Achtung! Wegen Bauarbeiten fährt die Linie U2 vom 5. bis 12. Mai nicht zwischen Hauptbahnhof und Stadtpark. Bitte benutzen Sie die Ersatzbusse.",
+      q: "Was sollen die Fahrgäste tun?", o: ["Die Ersatzbusse nehmen", "Zu Fuß gehen", "Zu Hause bleiben"], a: 0 },
+    { t: "mc", text: "Achtung! Wegen Bauarbeiten fährt die Linie U2 vom 5. bis 12. Mai nicht zwischen Hauptbahnhof und Stadtpark. Bitte benutzen Sie die Ersatzbusse.",
+      q: "Wie lange dauern die Bauarbeiten?", o: ["Ungefähr eine Woche", "Einen Monat", "Einen Tag"], a: 0 },
+  ]},
+  { id: "a2-3", level: "A2", skill: "write", icon: "⏪", title: "Escrever no Perfekt", items: [
+    { t: "type", s: "Ich ___ gestern Pizza gegessen.", h: "haben/sein", a: ["habe"], ex: "essen → Perfekt com haben." },
+    { t: "type", s: "Wir ___ nach Spanien geflogen.", h: "haben/sein", a: ["sind"], ex: "Verbos de movimento (fliegen, fahren, gehen) → sein." },
+    { t: "type", s: "Hast du das Buch schon ___?", h: "lesen", a: ["gelesen"] },
+    { t: "type", s: "Sie ist heute um 7 Uhr ___.", h: "aufstehen", a: ["aufgestanden"], ex: "Verbo separável: auf + ge + standen." },
+    { t: "type", s: "Ich habe meine Mutter ___.", h: "anrufen", a: ["angerufen"] },
+    { t: "type", s: "Was hast du am Wochenende ___?", h: "machen", a: ["gemacht"] },
+    { t: "order", a: "Ich bin gestern Abend spät nach Hause gekommen.", alt: ["Gestern Abend bin ich spät nach Hause gekommen."] },
+    { t: "tr", s: "Eu comprei um casaco novo.", a: ["Ich habe einen neuen Mantel gekauft.", "Ich habe eine neue Jacke gekauft.", "Ich habe mir einen neuen Mantel gekauft.", "Ich habe mir eine neue Jacke gekauft."] },
+    { t: "fix", s: "Er hat nach Berlin gefahren.", a: ["Er ist nach Berlin gefahren."], ex: "fahren (movimento) → sein." },
+    { t: "type", s: "Der Film hat um 20 Uhr ___.", h: "beginnen", a: ["begonnen"], ex: "Verbos com be-, ver-, er- não levam ge-." },
+  ]},
+  { id: "a2-4", level: "A2", skill: "write", icon: "✍️", title: "Ortografia e maiúsculas", items: [
+    { t: "fix", s: "am montag gehe ich mit meinem freund ins kino.", a: ["Am Montag gehe ich mit meinem Freund ins Kino."], ex: "Todos os substantivos em maiúscula: Montag, Freund, Kino." },
+    { t: "tr", q: "Escreve em alemão (com artigo):", s: "a rua", a: ["die Straße"] },
+    { t: "tr", q: "Escreve em alemão (com artigo):", s: "o pequeno-almoço", a: ["das Frühstück"] },
+    { t: "tr", q: "Escreve em alemão:", s: "feliz", a: ["glücklich"] },
+    { t: "tr", q: "Escreve em alemão (com artigo):", s: "a semana", a: ["die Woche"] },
+    { t: "mc", q: "Qual está correta?", o: ["Ich muss heute viel arbeiten.", "Ich muss heute viel Arbeiten.", "ich muss Heute viel arbeiten."], a: 0, ex: "Verbos ficam em minúscula; heute é advérbio." },
+    { t: "tr", q: "Escreve o número por extenso:", s: "12", a: ["zwölf"] },
+    { t: "fix", s: "Das Mädchen isst einen apfel.", a: ["Das Mädchen isst einen Apfel."] },
+    { t: "mc", q: "Wie schreibt man das richtig?", o: ["Das Wetter ist schön.", "das Wetter ist schön.", "Das wetter ist Schön."], a: 0 },
+    { t: "tr", q: "Escreve em alemão (com artigo):", s: "a chave", a: ["der Schlüssel"] },
+  ]},
+
+  // ======================= B1 =======================
+  { id: "b1-1", level: "B1", skill: "write", icon: "🎨", title: "Terminações dos adjetivos", items: [
+    { t: "type", s: "Ich wohne in einer ___ Wohnung.", h: "klein", a: ["kleinen"], ex: "Dativo feminino com artigo indefinido → -en." },
+    { t: "type", s: "Das ist ein ___ Film.", h: "spannend", a: ["spannender"], ex: "Nominativo masculino com ein → -er." },
+    { t: "type", s: "Der ___ Mann ist mein Nachbar.", h: "alt", a: ["alte"], ex: "Nominativo com artigo definido → -e." },
+    { t: "type", s: "Sie trägt ein ___ Kleid.", h: "rot", a: ["rotes"], ex: "Acusativo neutro com ein → -es." },
+    { t: "type", s: "Mit ___ Grüßen", h: "freundlich", a: ["freundlichen"], ex: "Dativo plural → -en." },
+    { t: "type", s: "Heute haben wir ___ Wetter.", h: "schön · sem artigo", a: ["schönes"], ex: "Sem artigo, o adjetivo mostra o género: das Wetter → schönes." },
+    { t: "type", s: "Ich suche einen ___ Job.", h: "neu", a: ["neuen"] },
+    { t: "type", s: "Die Kinder spielen mit dem ___ Ball.", h: "groß", a: ["großen"] },
+    { t: "fix", s: "Ich habe einen gute Idee.", a: ["Ich habe eine gute Idee."], ex: "die Idee → acusativo feminino: eine gute Idee." },
+    { t: "mc", q: "Das ist das Auto meines ___ Bruders.", o: ["älteren", "älterer", "ältere"], a: 0, ex: "Genitivo → -en." },
+  ]},
+  { id: "b1-2", level: "B1", skill: "read", icon: "📧", title: "Leitura: e-mails e anúncios", keepOrder: true, items: [
+    { t: "mc", text: "Hallo zusammen,\ndie Teambesprechung am Freitag wird auf Montag, 10 Uhr, verschoben, da unser Chef kurzfristig auf Geschäftsreise muss. Bitte bringt eure Quartalszahlen mit. Wer am Montag nicht kann, sagt mir bitte bis Donnerstag Bescheid.\nDanke! Lena",
+      q: "Warum wird die Besprechung verschoben?", o: ["Der Chef muss geschäftlich verreisen.", "Lena ist krank.", "Der Raum ist besetzt."], a: 0 },
+    { t: "mc", text: "Hallo zusammen,\ndie Teambesprechung am Freitag wird auf Montag, 10 Uhr, verschoben, da unser Chef kurzfristig auf Geschäftsreise muss. Bitte bringt eure Quartalszahlen mit. Wer am Montag nicht kann, sagt mir bitte bis Donnerstag Bescheid.\nDanke! Lena",
+      q: "Bis wann soll man Lena informieren, wenn man nicht kommen kann?", o: ["Bis Donnerstag", "Bis Montag", "Bis Freitag"], a: 0, ex: "Bescheid sagen = avisar." },
+    { t: "mc", text: "Volkshochschule: Fotografie für Einsteiger. 6 Termine, jeweils mittwochs von 18 bis 20 Uhr. Eine eigene Kamera ist erforderlich; ein Smartphone reicht nicht aus. Kursgebühr: 120 €, ermäßigt 90 € für Studierende und Rentner. Anmeldung bis spätestens 15. September.",
+      q: "Was braucht man für den Kurs?", o: ["Eine eigene Kamera", "Nur ein Smartphone", "Viel Erfahrung"], a: 0 },
+    { t: "mc", text: "Volkshochschule: Fotografie für Einsteiger. 6 Termine, jeweils mittwochs von 18 bis 20 Uhr. Eine eigene Kamera ist erforderlich; ein Smartphone reicht nicht aus. Kursgebühr: 120 €, ermäßigt 90 € für Studierende und Rentner. Anmeldung bis spätestens 15. September.",
+      q: "Wer zahlt weniger?", o: ["Studierende und Rentner", "Alle unter 30", "Mitglieder eines Fotoclubs"], a: 0, ex: "ermäßigt = com desconto." },
+    { t: "mc", text: "Volkshochschule: Fotografie für Einsteiger. 6 Termine, jeweils mittwochs von 18 bis 20 Uhr. Eine eigene Kamera ist erforderlich; ein Smartphone reicht nicht aus. Kursgebühr: 120 €, ermäßigt 90 € für Studierende und Rentner. Anmeldung bis spätestens 15. September.",
+      q: "Wie viele Stunden dauert der Kurs insgesamt?", o: ["12 Stunden", "6 Stunden", "20 Stunden"], a: 0, ex: "6 sessões × 2 horas." },
+    { t: "mc", text: "Sehr geehrte Damen und Herren,\nam 3. Juni habe ich bei Ihnen einen Staubsauger bestellt. Leider ist das Gerät beschädigt angekommen. Ich bitte Sie daher um einen Umtausch oder die Rückerstattung des Kaufpreises.",
+      q: "Was möchte die Person?", o: ["Ein neues Gerät oder ihr Geld zurück", "Einen zweiten Staubsauger", "Eine Reparatur bei ihr zu Hause"], a: 0 },
+    { t: "mc", text: "Sehr geehrte Damen und Herren,\nam 3. Juni habe ich bei Ihnen einen Staubsauger bestellt. Leider ist das Gerät beschädigt angekommen. Ich bitte Sie daher um einen Umtausch oder die Rückerstattung des Kaufpreises.",
+      q: "Welche Textsorte ist das?", o: ["Eine Beschwerde", "Eine Einladung", "Eine Bewerbung"], a: 0 },
+  ]},
+  { id: "b1-3", level: "B1", skill: "write", icon: "🔀", title: "Orações subordinadas", items: [
+    { t: "order", a: "Ich glaube, dass er morgen nicht kommt.", ex: "Em orações com dass, weil, obwohl… o verbo vai para o fim." },
+    { t: "order", a: "Obwohl es regnet, gehen wir spazieren.", alt: ["Wir gehen spazieren, obwohl es regnet."] },
+    { t: "order", a: "Sie ist müde, weil sie lange gearbeitet hat." },
+    { t: "order", a: "Wenn ich Zeit habe, rufe ich dich an.", alt: ["Ich rufe dich an, wenn ich Zeit habe."] },
+    { t: "type", s: "Ich weiß nicht, ___ er heute kommt.", h: "se", a: ["ob"], ex: "se (dúvida) = ob; se (condição) = wenn." },
+    { t: "fix", s: "Ich lerne Deutsch, weil ich will in Deutschland studieren.", a: ["Ich lerne Deutsch, weil ich in Deutschland studieren will."] },
+    { t: "tr", s: "Eu fico em casa porque estou doente.", a: ["Ich bleibe zu Hause, weil ich krank bin.", "Ich bleibe zuhause, weil ich krank bin.", "Ich bleibe daheim, weil ich krank bin."] },
+    { t: "order", a: "Kannst du mir sagen, wann der Zug abfährt?" },
+    { t: "type", s: "Er hat mir erzählt, ___ er einen neuen Job hat.", h: "que", a: ["dass"], ex: "dass (conjunção) com ss; das = artigo/pronome." },
+    { t: "fix", s: "Als ich ein Kind war, ich habe in Porto gewohnt.", a: ["Als ich ein Kind war, habe ich in Porto gewohnt."], ex: "Depois da oração subordinada, a principal começa pelo verbo." },
+  ]},
+  { id: "b1-4", level: "B1", skill: "write", icon: "🔗", title: "Verbos com preposição", items: [
+    { t: "type", s: "Ich warte schon lange ___ den Bus.", h: "esperar por", a: ["auf"] },
+    { t: "type", s: "Sie interessiert sich ___ Kunst.", h: "interessar-se por", a: ["für"] },
+    { t: "type", s: "Wir müssen ___ das Problem sprechen.", h: "falar sobre", a: ["über"] },
+    { t: "type", s: "Er hat Angst ___ Hunden.", h: "ter medo de", a: ["vor"] },
+    { t: "type", s: "Ich denke oft ___ meine Kindheit.", h: "pensar em", a: ["an"] },
+    { t: "type", s: "Das hängt ___ Wetter ab.", h: "depender de (+ dem)", a: ["vom"] },
+    { t: "type", s: "Sie hat sich ___ die Stelle beworben.", h: "candidatar-se a", a: ["um"] },
+    { t: "type", s: "Ich gratuliere dir ___ Geburtstag!", h: "parabéns por (+ dem)", a: ["zum"] },
+    { t: "fix", s: "Er nimmt an den Kurs teil.", a: ["Er nimmt an dem Kurs teil.", "Er nimmt am Kurs teil."], ex: "teilnehmen an + dativo." },
+    { t: "type", s: "___ wartest du? – Auf meine Schwester.", h: "por quem? (pessoa)", a: ["Auf wen"], ex: "Pessoa: Auf wen? Coisa: Worauf?" },
+  ]},
+
+  // ======================= B2 =======================
+  { id: "b2-1", level: "B2", skill: "write", icon: "🏗️", title: "Voz passiva", items: [
+    { t: "type", s: "Das Haus ___ gerade renoviert.", h: "Präsens", a: ["wird"] },
+    { t: "type", s: "Der Brief ___ gestern abgeschickt.", h: "Präteritum", a: ["wurde"] },
+    { t: "type", s: "Die Rechnung ist schon bezahlt ___.", h: "Perfekt", a: ["worden"], ex: "Na passiva, Perfekt = sein + particípio + worden." },
+    { t: "type", s: "Hier ___ nicht geraucht werden.", h: "dürfen", a: ["darf"] },
+    { t: "tr", q: "Passa para a passiva:", s: "Man repariert das Auto.", a: ["Das Auto wird repariert."] },
+    { t: "tr", q: "Passa para a passiva (Präteritum):", s: "Der Koch bereitete das Essen zu.", a: ["Das Essen wurde vom Koch zubereitet.", "Das Essen wurde von dem Koch zubereitet."], ex: "Agente com von + dativo." },
+    { t: "mc", q: "Die Fenster ___ jeden Tag geöffnet.", o: ["werden", "wird", "worden"], a: 0 },
+    { t: "fix", s: "Das Problem wurde schnell gelöst geworden.", a: ["Das Problem wurde schnell gelöst.", "Das Problem ist schnell gelöst worden."] },
+    { t: "type", s: "Das Museum muss dringend renoviert ___.", h: "infinitivo passivo", a: ["werden"] },
+    { t: "type", s: "Das Formular ist bereits ___.", h: "ausfüllen · Zustandspassiv", a: ["ausgefüllt"], ex: "Zustandspassiv (estado): sein + particípio." },
+  ]},
+  { id: "b2-2", level: "B2", skill: "read", icon: "📰", title: "Leitura: artigos de jornal", keepOrder: true, items: [
+    { t: "mc", text: "Immer mehr Städte setzen auf autofreie Innenstädte. In Pilotprojekten wurden Parkplätze in Grünflächen und Radwege umgewandelt. Während Anwohner die ruhigere Atmosphäre loben, klagen manche Einzelhändler über Umsatzeinbußen. Eine Studie der Universität Köln kommt allerdings zu dem Ergebnis, dass Fußgänger und Radfahrer häufiger, wenn auch in kleineren Mengen, einkaufen und so die Verluste weitgehend ausgleichen.",
+      q: "Worüber beschweren sich einige Händler?", o: ["Über geringere Einnahmen", "Über zu viele Radfahrer", "Über den Lärm"], a: 0 },
+    { t: "mc", text: "Immer mehr Städte setzen auf autofreie Innenstädte. In Pilotprojekten wurden Parkplätze in Grünflächen und Radwege umgewandelt. Während Anwohner die ruhigere Atmosphäre loben, klagen manche Einzelhändler über Umsatzeinbußen. Eine Studie der Universität Köln kommt allerdings zu dem Ergebnis, dass Fußgänger und Radfahrer häufiger, wenn auch in kleineren Mengen, einkaufen und so die Verluste weitgehend ausgleichen.",
+      q: "Was zeigt die Studie?", o: ["Die Verluste werden größtenteils ausgeglichen.", "Die Händler verlieren die Hälfte ihres Umsatzes.", "Radfahrer kaufen fast nie ein."], a: 0 },
+    { t: "mc", text: "Immer mehr Städte setzen auf autofreie Innenstädte. In Pilotprojekten wurden Parkplätze in Grünflächen und Radwege umgewandelt. Während Anwohner die ruhigere Atmosphäre loben, klagen manche Einzelhändler über Umsatzeinbußen. Eine Studie der Universität Köln kommt allerdings zu dem Ergebnis, dass Fußgänger und Radfahrer häufiger, wenn auch in kleineren Mengen, einkaufen und so die Verluste weitgehend ausgleichen.",
+      q: "„Umsatzeinbußen“ bedeutet …", o: ["Verluste bei den Verkäufen", "Höhere Mieten", "Neue Kunden"], a: 0 },
+    { t: "mc", text: "Der Fachkräftemangel in der Pflege verschärft sich weiter. Laut einem aktuellen Bericht fehlen bundesweit rund 50.000 Pflegekräfte. Als Ursachen nennen Experten vor allem die hohe körperliche Belastung, Schichtdienste und eine im Vergleich zu anderen Branchen geringe Bezahlung. Die Regierung plant nun, ausländische Abschlüsse schneller anzuerkennen.",
+      q: "Welche Ursache wird NICHT genannt?", o: ["Fehlende Ausbildungsplätze", "Schichtarbeit", "Niedriger Lohn"], a: 0 },
+    { t: "mc", text: "Der Fachkräftemangel in der Pflege verschärft sich weiter. Laut einem aktuellen Bericht fehlen bundesweit rund 50.000 Pflegekräfte. Als Ursachen nennen Experten vor allem die hohe körperliche Belastung, Schichtdienste und eine im Vergleich zu anderen Branchen geringe Bezahlung. Die Regierung plant nun, ausländische Abschlüsse schneller anzuerkennen.",
+      q: "Was plant die Regierung?", o: ["Ausländische Qualifikationen schneller anerkennen", "Die Löhne verdoppeln", "Schichtdienste abschaffen"], a: 0 },
+    { t: "mc", text: "Der Fachkräftemangel in der Pflege verschärft sich weiter. Laut einem aktuellen Bericht fehlen bundesweit rund 50.000 Pflegekräfte. Als Ursachen nennen Experten vor allem die hohe körperliche Belastung, Schichtdienste und eine im Vergleich zu anderen Branchen geringe Bezahlung. Die Regierung plant nun, ausländische Abschlüsse schneller anzuerkennen.",
+      q: "„verschärft sich“ bedeutet …", o: ["wird schlimmer", "wird besser", "bleibt gleich"], a: 0 },
+  ]},
+  { id: "b2-3", level: "B2", skill: "write", icon: "💭", title: "Konjunktiv II", items: [
+    { t: "type", s: "Wenn ich reich ___, würde ich um die Welt reisen.", h: "sein", a: ["wäre"] },
+    { t: "type", s: "Ich ___ gern mehr Zeit für meine Hobbys.", h: "haben", a: ["hätte"] },
+    { t: "type", s: "___ Sie mir bitte helfen?", h: "können · pedido educado", a: ["Könnten"] },
+    { t: "type", s: "An deiner Stelle ___ ich zum Arzt gehen.", h: "werden", a: ["würde"] },
+    { t: "type", s: "Wenn ich das gewusst ___, wäre ich früher gekommen.", h: "haben · passado", a: ["hätte"] },
+    { t: "type", s: "Er tut so, als ob er krank ___.", h: "sein", a: ["wäre"] },
+    { t: "tr", s: "Se eu tivesse tempo, ajudava-te.", a: ["Wenn ich Zeit hätte, würde ich dir helfen.", "Hätte ich Zeit, würde ich dir helfen.", "Wenn ich Zeit hätte, hülfe ich dir."] },
+    { t: "fix", s: "Wenn ich du wäre, ich würde das nicht machen.", a: ["Wenn ich du wäre, würde ich das nicht machen."] },
+    { t: "type", s: "Du ___ mehr schlafen.", h: "sollen · conselho", a: ["solltest"] },
+    { t: "tr", s: "Eu teria vindo, mas estava doente.", a: ["Ich wäre gekommen, aber ich war krank.", "Ich wäre gekommen, aber ich bin krank gewesen."] },
+  ]},
+  { id: "b2-4", level: "B2", skill: "write", icon: "🪢", title: "Orações relativas", items: [
+    { t: "type", s: "Der Mann, ___ dort steht, ist mein Chef.", h: "nominativo", a: ["der"] },
+    { t: "type", s: "Die Frau, ___ ich das Buch gegeben habe, ist Lehrerin.", h: "dativo", a: ["der"] },
+    { t: "type", s: "Das Auto, ___ ich gekauft habe, ist rot.", h: "acusativo", a: ["das"] },
+    { t: "type", s: "Die Kollegen, mit ___ ich arbeite, sind sehr nett.", h: "dativo plural", a: ["denen"] },
+    { t: "type", s: "Das ist mein Freund, ___ Schwester in Lissabon wohnt.", h: "genitivo", a: ["dessen"] },
+    { t: "type", s: "Die Stadt, in ___ ich geboren bin, ist klein.", h: "die Stadt · dativo", a: ["der"] },
+    { t: "fix", s: "Das ist das Buch, das ich dir erzählt habe.", a: ["Das ist das Buch, von dem ich dir erzählt habe.", "Das ist das Buch, wovon ich dir erzählt habe."], ex: "erzählen von → von dem / wovon." },
+    { t: "order", a: "Kennst du die Frau, die neben Paul sitzt?" },
+    { t: "mc", q: "Alles, ___ er sagt, ist wahr.", o: ["was", "das", "dass"], a: 0, ex: "Depois de alles, nichts, etwas, das Beste → was." },
+    { t: "tr", s: "O livro que estou a ler é muito interessante.", a: ["Das Buch, das ich gerade lese, ist sehr interessant.", "Das Buch, das ich lese, ist sehr interessant."] },
+  ]},
+
+  // ======================= C1 =======================
+  { id: "c1-1", level: "C1", skill: "write", icon: "🏛️", title: "Nominalização", items: [
+    { t: "type", s: "Nach ___ des Vertrags begann die Arbeit.", h: "unterzeichnen", a: ["der Unterzeichnung"] },
+    { t: "type", s: "Wegen ___ fiel das Spiel aus.", h: "Weil es stark regnete", a: ["des starken Regens"] },
+    { t: "type", s: "___ Auftreten von Problemen wenden Sie sich an uns.", h: "Wenn Probleme auftreten", a: ["Beim"] },
+    { t: "tr", q: "Nominaliza (com artigo):", s: "entscheiden", a: ["die Entscheidung"] },
+    { t: "tr", q: "Nominaliza (com artigo):", s: "untersuchen", a: ["die Untersuchung"] },
+    { t: "tr", q: "Nominaliza (com artigo):", s: "ankommen", a: ["die Ankunft"] },
+    { t: "tr", q: "Nominaliza (com artigo):", s: "verbessern", a: ["die Verbesserung"] },
+    { t: "type", s: "Trotz ___ Wetters fand das Fest statt.", h: "Obwohl das Wetter schlecht war", a: ["des schlechten"] },
+    { t: "mc", q: "„Während er studierte, …“ → „___ seines Studiums …“", o: ["Während", "Nach", "Wegen"], a: 0 },
+    { t: "tr", q: "Reescreve com nominalização:", s: "Bevor die Sitzung beginnt, …", a: ["Vor Beginn der Sitzung", "Vor dem Beginn der Sitzung"] },
+  ]},
+  { id: "c1-2", level: "C1", skill: "read", icon: "🧠", title: "Leitura: textos de opinião", keepOrder: true, items: [
+    { t: "mc", text: "Die Digitalisierung der Verwaltung wird seit Jahren als überfällig bezeichnet. Dass Bürgerinnen und Bürger für einfache Behördengänge noch immer Termine Wochen im Voraus vereinbaren müssen, ist kaum vermittelbar. Allerdings greift die verbreitete Schuldzuweisung an einzelne Behörden zu kurz: Das eigentliche Hindernis liegt in der föderalen Zuständigkeitsverteilung, die bundesweit einheitliche Lösungen erheblich erschwert.",
+      q: "Worin sieht der Autor das Hauptproblem?", o: ["In der Verteilung der Zuständigkeiten im Föderalismus", "In der Untätigkeit einzelner Behörden", "In fehlender Technik"], a: 0 },
+    { t: "mc", text: "Die Digitalisierung der Verwaltung wird seit Jahren als überfällig bezeichnet. Dass Bürgerinnen und Bürger für einfache Behördengänge noch immer Termine Wochen im Voraus vereinbaren müssen, ist kaum vermittelbar. Allerdings greift die verbreitete Schuldzuweisung an einzelne Behörden zu kurz: Das eigentliche Hindernis liegt in der föderalen Zuständigkeitsverteilung, die bundesweit einheitliche Lösungen erheblich erschwert.",
+      q: "Was bedeutet „greift zu kurz“?", o: ["ist unzureichend", "ist übertrieben", "ist falsch formuliert"], a: 0 },
+    { t: "mc", text: "Die Digitalisierung der Verwaltung wird seit Jahren als überfällig bezeichnet. Dass Bürgerinnen und Bürger für einfache Behördengänge noch immer Termine Wochen im Voraus vereinbaren müssen, ist kaum vermittelbar. Allerdings greift die verbreitete Schuldzuweisung an einzelne Behörden zu kurz: Das eigentliche Hindernis liegt in der föderalen Zuständigkeitsverteilung, die bundesweit einheitliche Lösungen erheblich erschwert.",
+      q: "Welche Haltung hat der Autor?", o: ["Kritisch, aber differenziert", "Völlig zufrieden", "Gleichgültig"], a: 0 },
+    { t: "mc", text: "Neuere Studien legen nahe, dass Mehrsprachigkeit nicht nur kommunikative Vorteile mit sich bringt. Mehrsprachige Personen schneiden in Tests zur kognitiven Flexibilität tendenziell besser ab, wenngleich die Effektstärken umstritten sind. Kritiker monieren, dass viele Untersuchungen sozioökonomische Faktoren nur unzureichend berücksichtigen.",
+      q: "Was kritisieren die Kritiker?", o: ["Soziale und wirtschaftliche Faktoren werden zu wenig beachtet.", "Mehrsprachigkeit schadet dem Gehirn.", "Die Tests sind zu leicht."], a: 0 },
+    { t: "mc", text: "Neuere Studien legen nahe, dass Mehrsprachigkeit nicht nur kommunikative Vorteile mit sich bringt. Mehrsprachige Personen schneiden in Tests zur kognitiven Flexibilität tendenziell besser ab, wenngleich die Effektstärken umstritten sind. Kritiker monieren, dass viele Untersuchungen sozioökonomische Faktoren nur unzureichend berücksichtigen.",
+      q: "„wenngleich“ kann ersetzt werden durch …", o: ["obwohl", "weil", "sodass"], a: 0 },
+    { t: "mc", text: "Neuere Studien legen nahe, dass Mehrsprachigkeit nicht nur kommunikative Vorteile mit sich bringt. Mehrsprachige Personen schneiden in Tests zur kognitiven Flexibilität tendenziell besser ab, wenngleich die Effektstärken umstritten sind. Kritiker monieren, dass viele Untersuchungen sozioökonomische Faktoren nur unzureichend berücksichtigen.",
+      q: "„monieren“ bedeutet …", o: ["bemängeln", "loben", "beweisen"], a: 0 },
+  ]},
+  { id: "c1-3", level: "C1", skill: "write", icon: "🎻", title: "Conectores e estilo", items: [
+    { t: "mc", q: "Er war krank, ___ ging er zur Arbeit.", o: ["dennoch", "deshalb", "denn"], a: 0 },
+    { t: "mc", q: "___ die Kosten gestiegen sind, bleibt der Preis stabil.", o: ["Obgleich", "Sodass", "Damit"], a: 0 },
+    { t: "type", s: "Je mehr man übt, ___ besser wird man.", h: "quanto mais… mais", a: ["desto", "umso"] },
+    { t: "type", s: "Sie spricht sowohl Deutsch ___ Englisch fließend.", h: "tanto… como", a: ["als auch"] },
+    { t: "type", s: "Er hat weder angerufen ___ geschrieben.", h: "nem… nem", a: ["noch"] },
+    { t: "mc", q: "Welcher Satz ist am formellsten?", o: ["Wir möchten Sie darauf hinweisen, dass die Frist am 30. Juni endet.", "Denken Sie dran, die Frist ist am 30. Juni rum.", "Hey, die Frist endet am 30. Juni!"], a: 0 },
+    { t: "order", a: "Infolgedessen wurde die Veranstaltung auf unbestimmte Zeit verschoben." },
+    { t: "fix", s: "Trotzdem er müde war, arbeitete er weiter.", a: ["Obwohl er müde war, arbeitete er weiter.", "Er war müde, trotzdem arbeitete er weiter.", "Er war müde; trotzdem arbeitete er weiter."], ex: "trotzdem é advérbio, não conjunção subordinativa → obwohl." },
+    { t: "mc", q: "Die Lage hat sich verbessert; ___ ist weiterhin Vorsicht geboten.", o: ["nichtsdestotrotz", "folglich", "zumal"], a: 0 },
+    { t: "type", s: "Ich gehe heute nicht aus, ___ ich morgen früh aufstehen muss.", h: "até porque / sobretudo porque", a: ["zumal"] },
+  ]},
+  { id: "c1-4", level: "C1", skill: "write", icon: "🗞️", title: "Discurso indireto (Konj. I)", items: [
+    { t: "type", s: "Er sagt, er ___ keine Zeit.", h: "haben", a: ["habe"] },
+    { t: "type", s: "Sie behauptet, sie ___ krank.", h: "sein", a: ["sei"] },
+    { t: "type", s: "Der Sprecher erklärte, man ___ die Lage prüfen.", h: "werden", a: ["werde"] },
+    { t: "type", s: "Laut Polizei ___ der Täter geflohen.", h: "sein", a: ["sei"] },
+    { t: "type", s: "Sie sagten, sie ___ davon nichts gewusst.", h: "haben · plural", a: ["hätten"], ex: "Quando o Konj. I é igual ao indicativo (sie haben), usa-se o Konj. II." },
+    { t: "tr", q: "Passa para discurso indireto:", s: "Er sagt: „Ich komme morgen.“", a: ["Er sagt, er komme morgen.", "Er sagt, dass er morgen komme."] },
+    { t: "tr", q: "Passa para discurso indireto:", s: "Sie sagte: „Ich habe den Bericht gelesen.“", a: ["Sie sagte, sie habe den Bericht gelesen.", "Sie sagte, dass sie den Bericht gelesen habe."] },
+    { t: "fix", s: "Der Zeuge sagte, er hat nichts gesehen.", a: ["Der Zeuge sagte, er habe nichts gesehen."] },
+    { t: "type", s: "Die Ministerin betonte, die Reform ___ notwendig.", h: "sein", a: ["sei"] },
+  ]},
+];
