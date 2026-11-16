@@ -99,11 +99,18 @@ function answersOf(it) {
   const base = Array.isArray(it.a) ? it.a : [it.a];
   return [...base, ...(it.alt || []), ...(S.extra[it._key] || [])];
 }
-function checkText(input, answers, caseInsensitive) {
+function checkText(input, answers, caseInsensitive, lenientFirst) {
   const n = norm(input);
   const A = answers.map(norm);
   const eq = (x, y) => caseInsensitive ? x.toLowerCase() === y.toLowerCase() : x === y;
   if (A.some((a) => eq(n, a))) return { ok: true };
+  // O teclado do telemóvel põe muitas vezes a 1.ª letra em maiúscula sozinho: numa lacuna a meio
+  // da frase, aceitar "Einen" quando a resposta é "einen" (mas não o contrário).
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  if (lenientFirst) {
+    const f0 = A.find((a) => a.charAt(0) !== a.charAt(0).toUpperCase() && (n === cap(a) || fold(n) === fold(cap(a))));
+    if (f0 !== undefined) return { ok: true, note: "Aceite. Atenção: aqui escreve-se com minúscula — " + f0 + " (o teclado pôs maiúscula sozinho?)" };
+  }
   const f = A.find((a) => eq(fold(n), fold(a)));
   if (f !== undefined) return { ok: true, note: "Aceite, mas escreve com ä / ö / ü / ß: " + f };
   if (A.some((a) => n.toLowerCase() === a.toLowerCase() || fold(n).toLowerCase() === fold(a).toLowerCase()))
@@ -151,20 +158,20 @@ function setLevel(L) { S.level = L; S.tab = "learn"; save(); render(); }
 // ================== Teste de nível ==================
 function startPlacement() {
   let li = 0, passed = null;
-  const scores = { read: [0, 0], write: [0, 0] };
+  const scores = { read: [0, 0], write: [0, 0] }, wrong = [];
   const runBlock = () => {
     const L = LEVELS[li];
     startSession({ title: "Teste de nível · bloco " + L, items: PLACEMENT[L], mode: "test",
       onDone: (r) => {
-        r.results.forEach((x) => { scores[x.skill][1]++; if (x.ok) scores[x.skill][0]++; });
+        r.results.forEach((x) => { scores[x.skill][1]++; if (x.ok) scores[x.skill][0]++; else wrong.push(x); });
         const ok = r.results.filter((x) => x.ok).length;
         if (ok >= 4) { passed = L; li++; if (li < LEVELS.length) return runBlock(); }
-        finishPlacement(passed, scores);
+        finishPlacement(passed, scores, wrong);
       } });
   };
   runBlock();
 }
-function finishPlacement(passed, scores) {
+function finishPlacement(passed, scores, wrong = []) {
   const start = !passed ? "A2" : LEVELS[Math.min(LI(passed) + 1, LEVELS.length - 1)];
   S.level = start; S.tab = "learn";
   S.placement = { passed, read: pct(scores.read), write: pct(scores.write), date: today() };
@@ -180,6 +187,10 @@ function finishPlacement(passed, scores) {
       <div>✍️ Escrita — ${S.placement.write}%<div class="bar"><i style="width:${S.placement.write}%"></i></div></div>
     </div>
     <p class="muted">${S.placement.read === S.placement.write ? "Leitura e escrita equilibradas." : "Ponto a reforçar: <b>" + weak + "</b>."} Os níveis abaixo ficam abertos para revisão.</p>
+    ${wrong.length ? `<div class="skills"><h3 style="margin:0">Respostas erradas</h3>` + wrong.map((x) => `<div class="card errcard">
+        <div class="muted">${esc(x.it.q || x.it.s || "")}</div>
+        <div>Escreveste: <s>${esc(x.input || "—")}</s></div>
+        <div>Certo: <b>${esc(correctDisplay(x.it))}</b></div></div>`).join("") + `</div>` : ""}
     <div class="spacer"></div>
     <button class="btn" onclick="render()">Começar a aprender</button></div>`;
 }
@@ -556,12 +567,13 @@ function check() {
     res = checkText(st.input, answersOf(it), true);
   } else {
     st.input = document.getElementById("inp").value;
-    res = checkText(st.input, answersOf(it), false);
+    res = checkText(st.input, answersOf(it), false, it.t === "type" && !it.s.trim().startsWith("___"));
   }
   st.checked = true;
   const first = !sess.retried.has(it._key) || sess.mode === "test";
   if (first) {
-    sess.results.push({ key: it._key, skill: it._skill, ok: res.ok });
+    sess.results.push({ key: it._key, skill: it._skill, ok: res.ok, it,
+      input: it.t === "mc" ? it.o[st.order[st.sel]] : st.input });
     S.stats[it._skill][1]++; if (res.ok) S.stats[it._skill][0]++;
     if (sess.mode !== "test") recordTopic(it._topic, res.ok);
   }
